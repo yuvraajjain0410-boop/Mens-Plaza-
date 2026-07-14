@@ -355,7 +355,10 @@
         </div>
       </div>
 
-      <div class="section-title">Current Stock (<span id="stockCount">0</span>)</div>
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <span>Current Stock (<span id="stockCount">0</span>)</span>
+        <button class="cancel-btn" style="font-size:12px;padding:6px 10px;" onclick="resetToDefaults()">Reset to Defaults</button>
+      </div>
       <div class="admin-list" id="adminList"></div>
     </div>
   </div>
@@ -376,7 +379,11 @@ let activeGender = "All";
 // every save/load call was silently failing and falling back to seed data.
 // Replaced with localStorage, which is a real browser API and persists data
 // on the visitor's device across refreshes, tab closes, and reopens.
-const STORAGE_KEY = 'mp_products';
+// Bump this version number any time you change seedProducts() (new items, new images,
+// fixed data, etc). Changing it makes every visitor's browser automatically discard
+// its old cached copy and reload the fresh seed data — no manual cache clearing needed.
+const STORAGE_VERSION = 2;
+const STORAGE_KEY = 'mp_products_v' + STORAGE_VERSION;
 
 async function loadProducts(){
   try{
@@ -660,6 +667,17 @@ async function deleteProduct(id){
   renderFilters();
   renderGrid();
   showToast("Deleted");
+}
+
+async function resetToDefaults(){
+  if(!confirm("This replaces ALL current products with the built-in default list. Any products you've added or edited will be lost. Continue?")) return;
+  products = seedProducts();
+  await persist();
+  renderAdminList();
+  renderTicker();
+  renderFilters();
+  renderGrid();
+  showToast("Reset to defaults");
 }
 
 // ---------- utils ----------
