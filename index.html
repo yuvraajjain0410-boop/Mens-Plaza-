@@ -124,24 +124,6 @@
   .card .name{font-size:13px;font-weight:600;margin-top:4px;line-height:1.35;}
   .card .size{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;}
   .card .price{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--accent);margin-top:8px;font-weight:700;}
-  .card .details{margin-top:9px;padding-top:9px;border-top:1px solid var(--line);}
-  .card .details .dt-label{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--accent);
-    text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px;}
-  .card .details .dt-text{font-size:11px;color:var(--muted);line-height:1.4;}
-  .img-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(10,10,11,0.55);
-    color:#fff;border:none;width:24px;height:24px;border-radius:50%;font-size:14px;line-height:1;
-    cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
-  .img-nav.prev{left:6px;} .img-nav.next{right:6px;}
-  .img-dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:4px;z-index:2;}
-  .img-dots .dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.4);}
-  .img-dots .dot.active{background:var(--accent);}
-  .img-preview-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
-  .img-thumb-item{position:relative;width:64px;height:64px;}
-  .img-thumb-item img{width:100%;height:100%;object-fit:cover;border-radius:4px;border:1px solid var(--line);}
-  .img-thumb-item button{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
-    background:#c0392b;color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;}
-  .img-thumb-item .main-tag{position:absolute;bottom:-2px;left:0;right:0;background:rgba(10,10,11,0.7);
-    color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:7px;text-align:center;padding:1px 0;}
   .wa-btn{margin-top:11px;width:100%;padding:10px;background:var(--wa);color:#0a2e18;border:none;
     border-radius:6px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;
     font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;justify-content:center;gap:6px;
@@ -356,9 +338,10 @@
         <div>
           <label>Product photos</label>
           <input type="file" id="f_imgfile" accept="image/*" multiple onchange="handleFileSelect(event)">
-          <div class="help" id="fileHelp">Tap to add one or more photos from your phone. They're compressed and saved automatically — tap again anytime to add more, they won't replace what's already there.</div>
-          <div id="imgPreviewWrap" class="img-preview-grid" style="display:none;"></div>
-          <button type="button" id="clearImagesBtn" onclick="clearAllImages()" style="display:none;margin-top:6px;background:none;border:1px solid var(--line);color:var(--muted);padding:6px 10px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;">Clear all photos</button>
+          <div class="help" id="fileHelp">Add 1–6 photos (first one is the cover photo shown in the grid). You can select several at once, or add more one at a time — tap the file picker again to add another.</div>
+          <div id="imgPreviewWrap" style="display:none; margin-top:10px; flex-wrap:wrap; gap:8px;">
+          </div>
+          <input id="f_img" type="hidden">
         </div>
         <div>
           <label>Notes (optional)</label>
@@ -505,49 +488,17 @@ function renderGrid(){
   }
   el.innerHTML = list.map((p,i)=>`
     <div class="card" style="animation-delay:${Math.min(i*0.05,0.4)}s">
-      <div class="imgwrap" data-id="${p.id}">
-        ${cardImgHtml(p)}
+      <div class="imgwrap">
+        ${p.img ? `<img src="${escapeAttr(p.img)}" alt="${escapeAttr(p.name)}" onerror="this.parentElement.innerHTML='<span class=&quot;ph&quot;>NO IMAGE</span>'">` : `<span class="ph">NO IMAGE</span>`}
         <span class="cat-chip">${catIcon(p.cat)} ${escapeHtml(p.cat)}</span>
       </div>
       <div class="sku">${escapeHtml(p.sku||'')}</div>
       <div class="name">${escapeHtml(p.name)}</div>
       ${p.size ? `<div class="size">Sizes: ${escapeHtml(p.size)}</div>` : ''}
       <div class="price">₹${formatPrice(p.price)}</div>
-      ${p.notes ? `<div class="details"><div class="dt-label">Details</div><div class="dt-text">${escapeHtml(p.notes)}</div></div>` : ''}
       <button class="wa-btn" onclick="orderWA('${p.id}')">💬 Order on WhatsApp</button>
     </div>
   `).join("");
-}
-
-function getImages(p){
-  if(Array.isArray(p.images) && p.images.length) return p.images;
-  return p.img ? [p.img] : [];
-}
-
-function cycleCardImage(id, delta){
-  const p = products.find(x=>x.id===id);
-  if(!p) return;
-  const imgs = getImages(p);
-  if(imgs.length<2) return;
-  const wrap = document.querySelector(`.imgwrap[data-id="${CSS.escape(id)}"]`);
-  if(!wrap) return;
-  const imgEl = wrap.querySelector('.card-img');
-  let idx = Number(imgEl.dataset.idx||0);
-  idx = (idx + delta + imgs.length) % imgs.length;
-  imgEl.dataset.idx = idx;
-  imgEl.src = imgs[idx];
-  wrap.querySelectorAll('.img-dots .dot').forEach((d,i)=>d.classList.toggle('active', i===idx));
-}
-
-function cardImgHtml(p){
-  const imgs = getImages(p);
-  if(!imgs.length) return `<span class="ph">NO IMAGE</span>`;
-  const nav = imgs.length>1 ? `
-    <button class="img-nav prev" type="button" onclick="event.stopPropagation();cycleCardImage('${p.id}',-1)">‹</button>
-    <button class="img-nav next" type="button" onclick="event.stopPropagation();cycleCardImage('${p.id}',1)">›</button>
-    <div class="img-dots">${imgs.map((_,i)=>`<span class="dot${i===0?' active':''}"></span>`).join('')}</div>
-  ` : '';
-  return `<img class="card-img" src="${escapeAttr(imgs[0])}" data-idx="0" alt="${escapeAttr(p.name)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'NO IMAGE'}))">${nav}`;
 }
 
 function orderWA(id){
@@ -588,11 +539,9 @@ function renderAdminList(){
     el.innerHTML = `<div class="help">No products yet — add your first one above.</div>`;
     return;
   }
-  el.innerHTML = products.map(p=>{
-    const imgs = getImages(p);
-    return `
+  el.innerHTML = products.map(p=>`
     <div class="admin-row">
-      <div class="thumb" style="position:relative;">${imgs[0] ? `<img src="${escapeAttr(imgs[0])}" onerror="this.style.display='none'">` : ''}${imgs.length>1 ? `<span style="position:absolute;bottom:2px;right:2px;background:rgba(10,10,11,0.75);color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:8px;padding:1px 4px;border-radius:3px;">×${imgs.length}</span>` : ''}</div>
+      <div class="thumb">${p.img ? `<img src="${escapeAttr(p.img)}" onerror="this.style.display='none'">` : ''}</div>
       <div class="info">
         <div class="n">${escapeHtml(p.name)}</div>
         <div class="p">₹${p.price} · ${escapeHtml(p.cat)}</div>
@@ -602,7 +551,7 @@ function renderAdminList(){
         <button class="del" onclick="deleteProduct('${p.id}')">Delete</button>
       </div>
     </div>
-  `;}).join("");
+  `).join("");
 }
 
 function editProduct(id){
@@ -617,7 +566,9 @@ function editProduct(id){
   document.getElementById('f_size').value = p.size;
   document.getElementById('f_notes').value = p.notes;
   document.getElementById('f_imgfile').value = '';
-  formImages = getImages(p).slice();
+  // CHANGED: load cover photo (p.img) plus any extra gallery photos (p.images)
+  // into the in-memory currentImages array that now drives the multi-photo UI.
+  currentImages = [p.img, ...(p.images || [])].filter(Boolean);
   renderImagePreviews();
   document.getElementById('formTitle').textContent = "Edit Product";
   document.getElementById('cancelEditBtn').style.display = 'inline-block';
@@ -628,7 +579,8 @@ function resetForm(){
   editingId = null;
   ['f_name','f_price','f_sku','f_size','f_notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f_imgfile').value = '';
-  formImages = [];
+  // CHANGED: clear the multi-photo array instead of a single hidden field
+  currentImages = [];
   renderImagePreviews();
   document.getElementById('f_cat').value = 'Sneakers';
   document.getElementById('f_gender').value = 'Men';
@@ -636,44 +588,62 @@ function resetForm(){
   document.getElementById('cancelEditBtn').style.display = 'none';
 }
 
-let formImages = [];
+// CHANGED: removes a single photo from the array by index instead of clearing everything
+function removeImageAt(idx){
+  currentImages.splice(idx, 1);
+  renderImagePreviews();
+}
 
+// NEW: in-memory list of compressed photos for the product currently being added/edited.
+// currentImages[0] is always treated as the cover photo shown in the shop grid.
+let currentImages = [];
+
+// NEW: redraws the thumbnail strip in the admin form from currentImages,
+// with a "Cover" tag on the first photo and a remove (×) button on each.
 function renderImagePreviews(){
   const wrap = document.getElementById('imgPreviewWrap');
-  const clearBtn = document.getElementById('clearImagesBtn');
-  if(!formImages.length){
+  if(!currentImages.length){
     wrap.style.display = 'none';
     wrap.innerHTML = '';
-    clearBtn.style.display = 'none';
     return;
   }
   wrap.style.display = 'flex';
-  clearBtn.style.display = 'inline-block';
-  wrap.innerHTML = formImages.map((src,i)=>`
-    <div class="img-thumb-item">
-      <img src="${escapeAttr(src)}">
-      <button type="button" onclick="removeFormImage(${i})">×</button>
-      ${i===0 ? '<span class="main-tag">Main</span>' : ''}
+  wrap.innerHTML = currentImages.map((src, i) => `
+    <div style="position:relative;width:72px;height:72px;">
+      <img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">
+      ${i===0 ? '<span style="position:absolute;bottom:2px;left:2px;background:var(--accent);color:#111;font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;font-family:\'IBM Plex Mono\',monospace;">COVER</span>' : ''}
+      <button type="button" onclick="removeImageAt(${i})" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#1c1d22;border:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1;cursor:pointer;">×</button>
     </div>
   `).join('');
 }
 
-function removeFormImage(i){
-  formImages.splice(i,1);
-  renderImagePreviews();
-}
+// CHANGED: now handles multiple selected files, compresses each one, and APPENDS
+// them to currentImages rather than overwriting — so tapping the picker again adds
+// more photos instead of replacing the ones already added. Capped at 6 photos.
+function handleFileSelect(evt){
+  const files = Array.from(evt.target.files || []);
+  if(!files.length) return;
+  const help = document.getElementById('fileHelp');
 
-function clearAllImages(){
-  formImages = [];
-  renderImagePreviews();
-}
+  const remaining = 6 - currentImages.length;
+  if(remaining <= 0){
+    help.textContent = "Maximum 6 photos per product — remove one to add another.";
+    evt.target.value = '';
+    return;
+  }
+  const toProcess = files.slice(0, remaining);
+  if(files.length > toProcess.length){
+    showToast(`Only added ${toProcess.length} — 6 photo limit per product`);
+  }
 
-function compressFile(file){
-  return new Promise((resolve,reject)=>{
+  help.textContent = "Compressing photo" + (toProcess.length > 1 ? "s" : "") + "...";
+  let doneCount = 0;
+
+  toProcess.forEach(file => {
     const reader = new FileReader();
-    reader.onload = e=>{
+    reader.onload = function(e){
       const img = new Image();
-      img.onload = ()=>{
+      img.onload = function(){
         const MAX = 800;
         let w = img.width, h = img.height;
         if(w > h && w > MAX){ h = Math.round(h * MAX / w); w = MAX; }
@@ -681,30 +651,19 @@ function compressFile(file){
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.72));
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+        currentImages.push(dataUrl);
+        doneCount++;
+        renderImagePreviews();
+        if(doneCount === toProcess.length){
+          help.textContent = currentImages.length + " photo" + (currentImages.length > 1 ? "s" : "") + " ready — will save with this product.";
+        }
       };
-      img.onerror = reject;
       img.src = e.target.result;
     };
-    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-}
-
-async function handleFileSelect(evt){
-  const files = Array.from(evt.target.files||[]);
-  if(!files.length) return;
-  const help = document.getElementById('fileHelp');
-  help.textContent = `Compressing ${files.length} photo${files.length>1?'s':''}...`;
-  try{
-    const results = await Promise.all(files.map(compressFile));
-    formImages.push(...results);
-    renderImagePreviews();
-    help.textContent = `${formImages.length} photo${formImages.length>1?'s':''} ready — will save with this product. Tap the file field again to add more.`;
-  }catch(err){
-    help.textContent = "Couldn't read one of those photos — try again.";
-  }
-  evt.target.value = '';
+  evt.target.value = ''; // allow re-selecting the same file(s) later if needed
 }
 
 async function saveProduct(){
@@ -719,8 +678,10 @@ async function saveProduct(){
     cat: document.getElementById('f_cat').value,
     gender: document.getElementById('f_gender').value,
     size: document.getElementById('f_size').value.trim(),
-    images: formImages.slice(),
-    img: formImages[0] || '',
+    // CHANGED: img is now currentImages[0] (the cover photo), and any additional
+    // photos go into the images[] array that the storefront gallery already reads from.
+    img: currentImages[0] || '',
+    images: currentImages.slice(1),
     notes: document.getElementById('f_notes').value.trim()
   };
 
@@ -773,6 +734,40 @@ function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':
 function escapeAttr(s){ return escapeHtml(s); }
 
 loadProducts();
+</script>
+<!-- Premium storefront upgrade -->
+<div id="luxCart" class="lux-cart"><div class="lux-cart-head"><b>Your bag</b><button onclick="luxToggleCart()">×</button></div><div id="luxCartItems"></div><div class="lux-cart-total">Total <b id="luxCartTotal">₹0</b><button onclick="luxCheckout()">Checkout on WhatsApp</button></div></div><div id="luxShade" class="lux-shade" onclick="luxToggleCart()"></div>
+<div id="luxProduct" class="lux-product"></div>
+<div id="luxFull" class="lux-full" onclick="this.classList.remove('open')"><button>×</button><img alt="Full screen product image"></div>
+<style>
+  .topbar{max-width:1440px;margin:auto;padding:17px 32px!important}.topbar:after{content:'♡  ︵';margin-left:auto;font-size:20px;letter-spacing:8px;color:var(--text)}.hero{min-height:430px;padding:80px 32px!important;background:linear-gradient(90deg,#16171bdd,transparent),url('https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1800&q=80') center/cover}.hero h1{font-size:clamp(48px,7vw,90px)!important;max-width:700px}.hero p{font-size:16px}.grid{max-width:1440px;margin:0 auto;padding:0 32px 50px;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:24px!important}.card{border:0!important;background:transparent!important;padding:0!important;overflow:visible!important;position:relative}.imgwrap{aspect-ratio:4/5!important;height:auto!important;border-radius:0!important;background:#24252a}.imgwrap img{height:100%!important;transition:transform .45s ease}.card:hover .imgwrap img{transform:scale(1.05)}.card .imgwrap:after{content:'QUICK VIEW  ·  ADD TO BAG';position:absolute;bottom:0;left:0;right:0;text-align:center;background:#fff;color:#111;padding:13px;font-size:10px;letter-spacing:.1em;font-weight:700;transform:translateY(100%);transition:.25s}.card:hover .imgwrap:after{transform:none}.card .wa-btn{background:var(--accent)!important;border-radius:0!important}.card .name{font-size:15px!important;margin-top:7px}.card .price{font-size:16px!important}.lux-cart{position:fixed;z-index:101;top:0;right:0;width:min(420px,100%);height:100%;background:#fff;color:#151515;transform:translateX(105%);transition:.3s;padding:25px}.lux-cart.open{transform:none}.lux-shade{position:fixed;z-index:100;inset:0;background:#0008;display:none}.lux-shade.open{display:block}.lux-cart-head{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding-bottom:17px;font-size:25px}.lux-cart button{border:0;background:#16171b;color:#fff;padding:12px;font-weight:700}.lux-cart-head button{background:transparent;color:#111;font-size:25px;padding:0}.lux-cart-item{display:grid;grid-template-columns:65px 1fr auto;gap:12px;padding:15px 0;border-bottom:1px solid #ddd}.lux-cart-item img{width:65px;height:75px;object-fit:cover}.lux-cart-item button{padding:3px;background:transparent;color:#f4511e}.lux-cart-total{position:absolute;bottom:25px;left:25px;right:25px;font-size:18px}.lux-cart-total b{float:right}.lux-cart-total button{width:100%;margin-top:15px}.lux-product{display:none;position:fixed;z-index:90;inset:0;background:#f7f6f2;color:#16171b;overflow:auto;padding:30px}.lux-product.open{display:block}.lux-close{border:0;background:transparent;font-size:26px;position:fixed;right:20px;top:15px;z-index:2}.lux-detail{max-width:1240px;margin:40px auto;display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:48px}.lux-gallery{display:grid;grid-template-columns:80px 1fr;gap:12px}.lux-thumbs img{width:70px;height:85px;object-fit:cover;margin-bottom:9px;cursor:pointer;border:1px solid transparent}.lux-thumbs img.active{border-color:#151515}.lux-main{position:relative;aspect-ratio:4/5;background:#ddd;overflow:hidden}.lux-main>img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;transition:.25s}.lux-main>img.zoom{transform:scale(1.7)}.lux-arrow{position:absolute;top:50%;border:0;border-radius:50%;width:42px;height:42px;font-size:22px}.lux-prev{left:12px}.lux-next{right:12px}.lux-info h1{font:600 48px/1 'Archivo Black',sans-serif;margin:12px 0}.lux-brand,.lux-label{font:11px 'IBM Plex Mono';letter-spacing:.1em;color:#777;text-transform:uppercase}.lux-price{font-size:24px;font-weight:800;margin:16px 0}.lux-sizes button{background:#fff;border:1px solid #ddd;padding:12px;margin:5px 5px 0 0}.lux-sizes button.active{background:#16171b;color:#fff}.lux-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:28px}.lux-actions button{border:0;padding:17px;background:#16171b;color:#fff;font-weight:800}.lux-actions button:last-child{background:#ff5a1f}.lux-copy{line-height:1.75;color:#666;border-top:1px solid #ddd;margin-top:25px;padding-top:20px}.lux-full{display:none;position:fixed;z-index:120;inset:0;background:#000e;align-items:center;justify-content:center}.lux-full.open{display:flex}.lux-full img{max-width:94vw;max-height:92vh}.lux-full button{position:absolute;right:20px;top:14px;color:#fff;background:transparent;border:0;font-size:30px}@media(max-width:700px){.topbar{padding:14px 16px!important}.hero{min-height:380px;padding:55px 20px!important}.grid{grid-template-columns:repeat(2,1fr)!important;padding:0 12px 35px;gap:18px 10px!important}.card:hover .imgwrap:after{transform:none;font-size:8px;padding:9px}.lux-product{padding:17px}.lux-detail{display:block;margin-top:35px}.lux-gallery{display:block}.lux-thumbs{display:flex;gap:7px;overflow:auto;margin-top:8px}.lux-thumbs img{flex:none}.lux-info h1{font-size:33px}.lux-actions{position:sticky;bottom:0;background:#f7f6f2;padding:10px 0}.shopby{padding:0 12px 24px!important}.shopby-title{padding:0 12px!important}}
+</style>
+<script>
+/* E-commerce layer: retains the existing catalogue and localStorage admin data. */
+let luxCart=JSON.parse(localStorage.getItem('mp_cart')||'[]'), luxCurrent=null,luxImage=0,luxSize='';
+function luxSrc(v){if(!v)return '';return v.startsWith('UklGR')?'data:image/webp;base64,'+v:v}
+function luxProduct(id){return products.find(p=>p.id===id)}
+function luxRenderGrid(){const el=document.getElementById('grid');let list=activeFilter==='All'?products:products.filter(p=>p.cat===activeFilter);if(activeGender!=='All')list=list.filter(p=>p.gender===activeGender);if(!list.length){el.innerHTML='<div class="empty">No products found.</div>';return}el.innerHTML=list.map((p,i)=>{let old=(String(p.notes||'').match(/MRP\s*(\d+)/i)||[])[1],off=old&&+old>p.price?Math.round((1-p.price/old)*100):0;return `<div class="card" style="animation-delay:${i*.04}s"><div class="imgwrap" onclick="luxOpen('${p.id}')">${p.img?`<img loading="lazy" src="${escapeAttr(luxSrc(p.img))}" alt="${escapeAttr(p.name)}">`:'<span class="ph">NO IMAGE</span>'}<span class="cat-chip">${escapeHtml(p.cat)}</span></div><div class="sku">${escapeHtml(p.brand||'MEN\'S PLAZA')}</div><div class="name">${escapeHtml(p.name)}</div><div class="price">₹${formatPrice(p.price)} ${old?`<small style="text-decoration:line-through;color:#888;font-weight:400">₹${formatPrice(old)}</small> <small style="color:#168b4b">${off}% OFF</small>`:''}</div><div class="availability" style="font-size:11px;color:#168b4b;margin:6px 0">In stock</div><button class="wa-btn" onclick="luxAdd('${p.id}')">Add to Bag</button></div>`}).join('')}
+function luxOpen(id){luxCurrent=luxProduct(id);luxImage=0;luxSize='';let p=luxCurrent,images=[p.img,...(p.images||[])].filter(Boolean);if(images.length<2&&p.img)images=[p.img,p.img,p.img];document.getElementById('luxProduct').innerHTML=`<button class="lux-close" onclick="luxClose()">×</button><div class="lux-detail"><div class="lux-gallery"><div class="lux-thumbs">${images.map((x,i)=>`<img class="${i===0?'active':''}" src="${escapeAttr(luxSrc(x))}" onclick="luxSetImage(${i})">`).join('')}</div><div class="lux-main"><img id="luxMainImg" src="${escapeAttr(luxSrc(images[0]))}" onclick="this.classList.toggle('zoom')"><button class="lux-arrow lux-prev" onclick="luxMove(-1)">‹</button><button class="lux-arrow lux-next" onclick="luxMove(1)">›</button><button style="position:absolute;right:12px;bottom:12px" onclick="luxFullscreen()">⛶</button></div></div><div class="lux-info"><div class="lux-brand">${escapeHtml(p.brand||'MEN\'S PLAZA')} / ${escapeHtml(p.cat)}</div><h1>${escapeHtml(p.name)}</h1><div class="lux-price">₹${formatPrice(p.price)}</div><div class="lux-label">Select a size</div><div class="lux-sizes">${String(p.size||'UK 7, UK 8, UK 9').split(',').map(s=>`<button onclick="luxSelectSize(this,'${escapeAttr(s.trim())}')">${escapeHtml(s.trim())}</button>`).join('')}</div><div class="lux-actions"><button onclick="luxAdd('${p.id}',true)">Add to bag</button><button onclick="luxBuy('${p.id}')">Buy now</button></div><div class="lux-copy"><b>Product details</b><br>${escapeHtml(p.notes||'Premium everyday footwear selected for comfort and style.')}<br><br><b>Delivery information</b><br>Contact us after ordering for size confirmation and delivery details. Images can be swiped on mobile, selected through thumbnails, zoomed, or viewed full-screen.</div></div></div>`;document.getElementById('luxProduct').classList.add('open');document.body.style.overflow='hidden';let start;document.querySelector('.lux-main').addEventListener('touchstart',e=>start=e.touches[0].clientX,{passive:true});document.querySelector('.lux-main').addEventListener('touchend',e=>{if(Math.abs(e.changedTouches[0].clientX-start)>40)luxMove(e.changedTouches[0].clientX>start?-1:1)},{passive:true})}
+function luxClose(){document.getElementById('luxProduct').classList.remove('open');document.body.style.overflow=''}function luxImages(){return [luxCurrent.img,...(luxCurrent.images||[])].filter(Boolean)}function luxSetImage(i){luxImage=i;let a=luxImages();document.getElementById('luxMainImg').src=luxSrc(a[i%a.length]);document.querySelectorAll('.lux-thumbs img').forEach((x,n)=>x.classList.toggle('active',n===i%a.length))}function luxMove(n){let a=luxImages();luxSetImage((luxImage+n+a.length)%a.length)}function luxFullscreen(){let e=document.getElementById('luxFull');e.querySelector('img').src=document.getElementById('luxMainImg').src;e.classList.add('open')}function luxSelectSize(el,size){luxSize=size;document.querySelectorAll('.lux-sizes button').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
+function luxAdd(id,detail=false){if(detail&&!luxSize)return showToast('Please select a size');let found=luxCart.find(x=>x.id===id&&x.size===(detail?luxSize:''));if(found)found.qty++;else luxCart.push({id,size:detail?luxSize:'',qty:1});localStorage.setItem('mp_cart',JSON.stringify(luxCart));luxRenderCart();showToast('Added to your bag')}
+function luxRenderCart(){let total=0;document.getElementById('luxCartItems').innerHTML=luxCart.map((l,i)=>{let p=luxProduct(l.id);if(!p)return '';total+=p.price*l.qty;return `<div class="lux-cart-item"><img src="${escapeAttr(luxSrc(p.img))}"><div><b>${escapeHtml(p.name)}</b><br><small>${escapeHtml(l.size||'Standard')} · Qty ${l.qty}</small><br>₹${formatPrice(p.price*l.qty)}</div><button onclick="luxRemove(${i})">Remove</button></div>`}).join('')||'<p style="padding:20px 0;color:#777">Your bag is empty.</p>';document.getElementById('luxCartTotal').textContent='₹'+formatPrice(total)}function luxRemove(i){luxCart.splice(i,1);localStorage.setItem('mp_cart',JSON.stringify(luxCart));luxRenderCart()}function luxToggleCart(){document.getElementById('luxCart').classList.toggle('open');document.getElementById('luxShade').classList.toggle('open')}function luxBuy(id){luxAdd(id,true);luxClose();luxToggleCart()}function luxCheckout(){if(!luxCart.length)return showToast('Your bag is empty');let text=luxCart.map(l=>{let p=luxProduct(l.id);return `• ${p.name}${l.size?' ('+l.size+')':''} × ${l.qty} — ₹${formatPrice(p.price*l.qty)}`}).join('\n');window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('Hi, I would like to order:\n\n'+text)}`,'_blank')}
+const originalRenderGrid=renderGrid;renderGrid=luxRenderGrid;const originalLoad=loadProducts;loadProducts=async function(){await originalLoad();luxRenderGrid();luxRenderCart()};luxRenderGrid();luxRenderCart();
+</script>
+<div id="addressCheckout" class="address-checkout"><div class="address-box"><button class="address-close" onclick="closeAddressCheckout()">×</button><div class="lux-label">Secure order request</div><h2>Delivery address</h2><p id="addressOrder"></p><form onsubmit="confirmAddress(event)"><label>Full name<input id="addressName" required autocomplete="name" placeholder="Your full name"></label><label>Phone number<input id="addressPhone" required inputmode="tel" placeholder="Your WhatsApp number"></label><label>Complete address<textarea id="addressStreet" required autocomplete="street-address" placeholder="House / street / area"></textarea></label><div class="address-grid"><label>Landmark<input id="addressLandmark" required placeholder="Nearby landmark"></label><label>City<input id="addressCity" required placeholder="City"></label><label>State<input id="addressState" required placeholder="State"></label><label>Postal code<input id="addressPostal" required inputmode="numeric" pattern="[0-9]{6}" placeholder="6-digit code"></label></div><button class="address-confirm">Confirm address & order on WhatsApp</button></form></div></div>
+<style>
+.address-checkout{display:none;position:fixed;z-index:200;inset:0;background:#000a;overflow:auto;padding:22px}.address-checkout.open{display:block}.address-box{position:relative;max-width:600px;margin:20px auto;background:#fff;color:#16171b;padding:30px}.address-box h2{font:600 34px/1 'Archivo Black',sans-serif;margin:10px 0}.address-box p{color:#666;margin:0 0 20px}.address-close{position:absolute;right:16px;top:10px;border:0;background:transparent!important;color:#16171b!important;font-size:27px;cursor:pointer}.address-box label{display:block;font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;margin-top:13px}.address-box input,.address-box textarea{width:100%;padding:12px;border:1px solid #d6d6d6;margin-top:6px;outline:0;background:#fff;color:#16171b}.address-box textarea{height:75px;resize:vertical}.address-box input:focus,.address-box textarea:focus{border-color:#ff5a1f}.address-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 13px}.address-confirm{width:100%;margin-top:23px;background:#ff5a1f!important;color:#fff;padding:16px!important;border:0;cursor:pointer;font-weight:800}@media(max-width:600px){.address-checkout{padding:10px}.address-box{padding:27px 17px}.address-grid{grid-template-columns:1fr}}
+</style>
+<script>
+/* Address checkout: sends an explicit delivery request to the store WhatsApp. */
+function openAddressCheckout(lines){window.addressLines=lines;document.getElementById('addressOrder').textContent='Ordering: '+lines.map(l=>{const p=luxProduct(l.id);return p.name+(l.size?' ('+l.size+')':'')+' × '+l.qty}).join(', ');document.getElementById('addressCheckout').classList.add('open')}
+function closeAddressCheckout(){document.getElementById('addressCheckout').classList.remove('open')}
+function confirmAddress(e){e.preventDefault();const v=id=>document.getElementById(id).value.trim(),lines=window.addressLines||[];const order=lines.map(l=>{const p=luxProduct(l.id);return `• ${p.name}${l.size?' ('+l.size+')':''} × ${l.qty} — ₹${formatPrice(p.price*l.qty)}`}).join('\n');const total=lines.reduce((s,l)=>s+(luxProduct(l.id)?.price||0)*l.qty,0);const message=`Hi, I would like to place an order.\n\nORDER\n${order}\n\nTotal: ₹${formatPrice(total)}\n\nDELIVERY ADDRESS\nName: ${v('addressName')}\nPhone: ${v('addressPhone')}\nAddress: ${v('addressStreet')}\nLandmark: ${v('addressLandmark')}\nCity: ${v('addressCity')}\nState: ${v('addressState')}\nPostal code: ${v('addressPostal')}`;window.open('https://wa.me/918011799931?text='+encodeURIComponent(message),'_blank');closeAddressCheckout()}
+luxBuy=function(id){if(!luxSize)return showToast('Please select a size');openAddressCheckout([{id:id,size:luxSize,qty:1}])};luxCheckout=function(){if(!luxCart.length)return showToast('Your bag is empty');openAddressCheckout(luxCart)};
+</script>
+<script>
+/* Reliable bag control: uses event delegation so dynamically rendered product buttons work on touch devices. */
+document.addEventListener('click',function(event){const button=event.target.closest('.wa-btn');if(!button||button.textContent.trim()!=='Add to Bag')return;event.preventDefault();event.stopImmediatePropagation();const card=button.closest('.card');const name=card&&card.querySelector('.name')?.textContent.trim();const product=products.find(p=>p.name===name);if(!product)return showToast('Product could not be added');luxAdd(product.id);if(!document.getElementById('luxCart').classList.contains('open'))luxToggleCart()},true);
 </script>
 </body>
 </html>
