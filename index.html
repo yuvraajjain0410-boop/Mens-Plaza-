@@ -519,11 +519,13 @@ function orderWA(id){
 
 // ---------- admin ----------
 function openAdmin(){
+  if(location.hash !== '#admin') history.replaceState(null, '', `${location.pathname}#admin`);
   document.getElementById('store').style.display = 'none';
   document.getElementById('admin').style.display = 'block';
   window.scrollTo(0,0);
 }
 function closeAdmin(){
+  history.replaceState(null, '', location.pathname);
   document.getElementById('admin').style.display = 'none';
   document.getElementById('store').style.display = 'block';
   document.getElementById('lockScreen').style.display = 'flex';
@@ -533,7 +535,7 @@ function closeAdmin(){
 async function tryLogin(){
   const val = document.getElementById('pwInput').value;
   try{
-    const response = await fetch('/api/session', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:val})});
+    const response = await fetch(location.hostname.endsWith('.netlify.app') ? '/.netlify/functions/session' : '/api/session', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:val})});
     if(!response.ok) throw new Error('Incorrect password');
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
@@ -700,25 +702,8 @@ function escapeAttr(s){ return escapeHtml(s); }
 loadProducts();
 </script>
 <script>
-/* Private admin access: Ctrl + Shift + A. The password prompt still protects the panel. */
-document.addEventListener('keydown', function(event){
-  if(event.ctrlKey && event.shiftKey && event.key.toLowerCase()==='a'){
-    event.preventDefault();
-    openAdmin();
-  }
-});
-let logoTapCount = 0, logoTapTimer;
-document.addEventListener('click', function(event){
-  if(!event.target.closest('.logo')) return;
-  logoTapCount++;
-  clearTimeout(logoTapTimer);
-  logoTapTimer = setTimeout(()=>logoTapCount=0, 1800);
-  if(logoTapCount >= 5){
-    logoTapCount = 0;
-    clearTimeout(logoTapTimer);
-    openAdmin();
-  }
-});
+/* The private management page opens this screen with the #admin address. */
+if(location.hash === '#admin') openAdmin();
 </script>
 <!-- Premium storefront upgrade -->
 <div id="luxCart" class="lux-cart"><div class="lux-cart-head"><b>Your bag</b><button onclick="luxToggleCart()">×</button></div><div id="luxCartItems"></div><div class="lux-cart-total">Total <b id="luxCartTotal">₹0</b><button onclick="luxCheckout()">Checkout on WhatsApp</button></div></div><div id="luxShade" class="lux-shade" onclick="luxToggleCart()"></div>
@@ -780,7 +765,7 @@ saveProduct=async function(){
 </script>
 <script>
 /* Shared catalogue: local storage remains a fallback; production data lives in Cloudflare D1. */
-const CLOUD_PRODUCTS_API = '/api/products';
+const CLOUD_PRODUCTS_API = location.hostname.endsWith('.netlify.app') ? '/.netlify/functions/products' : '/api/products';
 const localPersist = persist;
 persist = async function(){
   localPersist();
