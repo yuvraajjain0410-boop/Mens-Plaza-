@@ -278,7 +278,7 @@
   </div>
 
   <footer>
-    <span class="admin-link" aria-hidden="true"></span>
+    <button class="privacy-link" onclick="openPrivacy()">Privacy Policy</button>
   </footer>
 
   <button class="float-wa" onclick="generalInquiry()" aria-label="Chat on WhatsApp">💬</button>
@@ -530,15 +530,15 @@ function closeAdmin(){
   document.getElementById('adminPanel').style.display = 'none';
   document.getElementById('pwInput').value = '';
 }
-function tryLogin(){
+async function tryLogin(){
   const val = document.getElementById('pwInput').value;
-  if(val === "Mensplaza@123"){
+  try{
+    const response = await fetch('/api/session', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:val})});
+    if(!response.ok) throw new Error('Incorrect password');
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
     renderAdminList();
-  } else {
-    document.getElementById('pwErr').textContent = "Wrong password, try again.";
-  }
+  }catch{document.getElementById('pwErr').textContent = "Wrong password, try again.";}
 }
 
 function renderAdminList(){
@@ -787,7 +787,8 @@ persist = async function(){
   try {
     const response = await fetch(CLOUD_PRODUCTS_API, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': 'Mensplaza@123' },
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(products)
     });
     if(!response.ok) throw new Error('Save failed');
@@ -821,6 +822,24 @@ luxAdd = function(id, detail){
   addProductToBag(id, detail);
   if(!document.getElementById('luxCart').classList.contains('open')) luxToggleCart();
 };
+</script>
+<div id="privacyPolicy" class="privacy-policy" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
+  <div class="privacy-card">
+    <button class="privacy-close" onclick="closePrivacy()" aria-label="Close privacy policy">×</button>
+    <div class="tag">Your privacy</div>
+    <h2 id="privacyTitle">Privacy Policy</h2>
+    <p>We collect only the information you provide when placing an order, such as your name, phone number, delivery address and selected products.</p>
+    <p>We use this information only to confirm, process and deliver your order, or to provide customer support. We do not sell, rent or share your personal information for marketing purposes.</p>
+    <p>Order details are handled only for as long as needed to fulfil your order and meet our service obligations.</p>
+  </div>
+</div>
+<style>
+  .privacy-link{border:0;background:transparent;color:var(--muted);font:11px 'IBM Plex Mono',monospace;letter-spacing:.05em;text-decoration:underline;cursor:pointer}.privacy-policy{display:none;position:fixed;z-index:250;inset:0;background:rgba(0,0,0,.75);padding:20px;align-items:center;justify-content:center}.privacy-policy.open{display:flex}.privacy-card{position:relative;max-width:560px;background:var(--bg2);border:1px solid var(--line);padding:32px;color:var(--text);box-shadow:0 18px 60px rgba(0,0,0,.45)}.privacy-card h2{font-family:'Archivo Black',sans-serif;font-size:30px;margin:9px 0 20px;text-transform:uppercase}.privacy-card p{color:var(--muted);line-height:1.75;margin:0 0 14px}.privacy-close{position:absolute;right:14px;top:10px;border:0;background:transparent;color:var(--text);font-size:26px;cursor:pointer}
+</style>
+<script>
+function openPrivacy(){document.getElementById('privacyPolicy').classList.add('open')}
+function closePrivacy(){document.getElementById('privacyPolicy').classList.remove('open')}
+document.getElementById('privacyPolicy').addEventListener('click',event=>{if(event.target.id==='privacyPolicy')closePrivacy()});
 </script>
 </body>
 </html>
